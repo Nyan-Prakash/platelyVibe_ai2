@@ -1,0 +1,8 @@
+Flask>=2.0
+pandas>=1.0 # For data handling, useful with simulation results
+numpy>=1.0 # For numerical operations, if needed by simulation or analysis
+fastapi>=0.70.0
+uvicorn[standard]>=0.15.0 # [standard] includes common extras like websockets, not strictly needed now but good practice
+pydantic>=1.8.0
+python-multipart>=0.0.5 # Required for FastAPI File Uploads (forms)
+Jinja2>=3.0 # For template rendering, if we keep it (FastAPI doesn't bundle it like Flask)

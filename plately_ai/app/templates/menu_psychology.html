@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plately AI - Menu Psychology Analysis</title>
+    <style>
+        body { font-family: sans-serif; margin: 0; background-color: #f4f4f4; color: #333; display: flex; flex-direction: column; min-height: 100vh; }
+        header { background-color: #333; color: white; padding: 1em; text-align: center; }
+        nav { background-color: #444; padding: 0.5em; text-align: center; }
+        nav a { color: white; margin: 0 15px; text-decoration: none; font-weight: bold; }
+        nav a:hover { text-decoration: underline; }
+        .container { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); margin: 20px auto; width: 80%; max-width: 900px; flex-grow: 1;}
+        h1, h2 { color: #333; }
+        textarea { width: 98%; min-height: 150px; margin-bottom: 10px; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        button { padding: 10px 18px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; }
+        button:hover { background-color: #0056b3; }
+        .suggestions-list { list-style-type: none; padding: 0; }
+        .suggestions-list li { background-color: #e9f5ff; border-left: 5px solid #007bff; margin-bottom: 15px; padding: 15px; border-radius: 4px; }
+        .suggestions-list h3 { margin-top: 0; color: #0056b3; }
+        .flash-messages { list-style-type: none; padding: 0; margin-bottom: 15px; }
+        .flash-messages li { padding: 10px; border-radius: 4px; margin-bottom: 10px; }
+        .flash-messages .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .flash-messages .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .flash-messages .warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        .flash-messages .info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        label { font-weight: bold; display: block; margin-bottom: 5px; }
+        input[type="file"] { margin-bottom: 15px; }
+        footer { background-color: #333; color: white; text-align: center; padding: 1em; margin-top: auto; }
+        .example-json { font-family: monospace; font-size: 0.9em; background-color: #f0f0f0; padding: 10px; border-radius: 4px; margin-top:10px; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Plately AI</h1>
+    </header>
+    <nav>
+        <a href="{{ url_for('index') }}">Pricing Dashboard</a>
+        <a href="{{ url_for('menu_psychology_tool') }}">Menu Psychology</a>
+        <a href="{{ url_for('dish_visuals_tool') }}">Dish Visuals</a>
+    </nav>
+
+    <div class="container">
+        <h2>Menu Psychology Analyzer</h2>
+        <p>Upload your menu as a JSON file or paste JSON data directly to get psychology-driven suggestions.</p>
+        <p><strong>Required item fields:</strong> <code>name</code> (string), <code>price</code> (number). Optional: <code>id</code> (string), <code>description</code> (string), <code>category</code> (string).</p>
+        <p>Example JSON structure for one item:</p>
+        <div class="example-json">{ "id": "item001", "name": "Classic Burger", "price": 12.99, "description": "Juicy patty...", "category": "Burgers" }</div>
+        <p>The full menu should be a list of such items: <code>[ {item1}, {item2}, ... ]</code></p>
+
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <ul class="flash-messages">
+                {% for category, message in messages %}
+                    <li class="{{ category }}">{{ message }}</li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" enctype="multipart/form-data">
+            <div>
+                <label for="menu_file">Upload Menu JSON File:</label>
+                <input type="file" id="menu_file" name="menu_file" accept=".json">
+            </div>
+            <div>
+                <label for="menu_data_json">Or Paste Menu JSON Data:</label>
+                <textarea id="menu_data_json" name="menu_data_json" rows="10">{% if submitted_json %}{{ submitted_json }}{% endif %}</textarea>
+            </div>
+            <button type="submit">Analyze Menu</button>
+        </form>
+
+        {% if suggestions %}
+            <h2>Analysis Suggestions:</h2>
+            {% if suggestions|length == 1 and suggestions[0].suggestion == "No specific issues found with the current checks. The menu might be well-structured or require more advanced analysis." or suggestions[0].suggestion == "Menu data is empty. Cannot perform analysis." %}
+                 <p>{{ suggestions[0].suggestion }}</p>
+            {% else %}
+                <ul class="suggestions-list">
+                    {% for suggestion in suggestions %}
+                        <li>
+                            <h3>{{ suggestion.principle }}</h3>
+                            {% if suggestion.item_name %}
+                                <p><strong>Item:</strong> {{ suggestion.item_name }}</p>
+                            {% endif %}
+                            {% if suggestion.category %}
+                                <p><strong>Category:</strong> {{ suggestion.category }}</p>
+                            {% endif %}
+                            <p>{{ suggestion.suggestion }}</p>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        {% endif %}
+    </div>
+    <footer>
+        <p>&copy; 2024 Plately AI - AI Menu Engineer</p>
+    </footer>
+</body>
+</html>

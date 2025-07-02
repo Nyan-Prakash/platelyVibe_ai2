@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plately AI - Pricing Dashboard</title>
+    <style>
+        body { font-family: sans-serif; margin: 0; background-color: #f4f4f4; color: #333; display: flex; flex-direction: column; min-height: 100vh; }
+        header { background-color: #333; color: white; padding: 1em; text-align: center; }
+        nav { background-color: #444; padding: 0.5em; text-align: center; }
+        nav a { color: white; margin: 0 15px; text-decoration: none; font-weight: bold; }
+        nav a:hover { text-decoration: underline; }
+        .container { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); margin: 20px auto; width: 90%; max-width: 1200px; flex-grow: 1;}
+        h1, h2 { color: #333; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background-color: #f0f0f0; }
+        .currency:before { content: "$"; }
+        .number { text-align: right; }
+        .item-input { width: 80px; padding: 5px; margin-left: 10px; border: 1px solid #ccc; border-radius: 3px; }
+        button { padding: 8px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        .results-section { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; }
+        .flash-messages { list-style-type: none; padding: 0; margin-bottom: 15px; }
+        .flash-messages li { padding: 10px; border-radius: 4px; margin-bottom: 10px; }
+        .flash-messages .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; font-weight: bold; }
+        .total-revenue { font-size: 1.2em; font-weight: bold; margin-top: 10px;}
+        .elasticity-table { margin-top: 15px; }
+        .elasticity-table th, .elasticity-table td { padding: 6px; font-size: 0.9em; }
+        #loading { display: none; margin-top: 15px; color: #007bff; font-weight: bold; }
+        footer { background-color: #333; color: white; text-align: center; padding: 1em; margin-top: auto; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Plately AI</h1>
+    </header>
+    <nav>
+        <a href="{{ url_for('index') }}">Pricing Dashboard</a>
+        <a href="{{ url_for('menu_psychology_tool') }}">Menu Psychology</a>
+        <a href="{{ url_for('dish_visuals_tool') }}">Dish Visuals</a>
+    </nav>
+
+    <div class="container">
+        <h2>Interactive Pricing Dashboard</h2>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <ul class="flash-messages">
+                {% for category, message in messages %}
+                    <li class="{{ category }}">{{ message }}</li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+
+        {% if simulation_engine_error %}
+            <p class="flash-messages error">Pricing simulation engine is currently unavailable. Please check application configuration.</p>
+        {% else %}
+            <h3>Current Menu & Price Simulation</h3>
+            {% if menu_items %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Item Name</th>
+                            <th>Current Price</th>
+                            <th>Simulate New Price</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in menu_items %}
+                        <tr>
+                            <td>{{ item.name }}</td>
+                            <td class="currency number">{{ "%.2f"|format(item.price) }}</td>
+                            <td>
+                                <input type="number" class="item-input" id="price-{{ item.id }}"
+                                    step="0.01" min="0" value="{{ "%.2f"|format(item.price) }}">
+                            </td>
+                            <td>
+                                <button onclick="runSimulation('{{ item.id }}')">Simulate</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>No menu items loaded into the simulation engine.</p>
+            {% endif %}
+        {% endif %}
+
+        <div id="loading">Simulating... Please wait.</div>
+
+        <div id="simulation-results-container" class="results-section" style="display:none;">
+            <h3>Simulation Results</h3>
+            <p id="simulation-message"></p>
+
+            <div class="total-revenue">Baseline Total Revenue: <span id="baseline-total-revenue" class="currency"></span></div>
+            <div class="total-revenue">Scenario Total Revenue: <span id="scenario-total-revenue" class="currency"></span></div>
+
+            <h4>Demand & Revenue Comparison</h4>
+            <table id="results-table">
+                <thead>
+                    <tr>
+                        <th>Item Name</th>
+                        <th>Original Price</th>
+                        <th>Scenario Price</th>
+                        <th>Baseline Demand</th>
+                        <th>Scenario Demand</th>
+                        <th>% Change Demand</th>
+                        <th>Baseline Revenue</th>
+                        <th>Scenario Revenue</th>
+                        <th>% Change Revenue</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Results will be populated here by JavaScript -->
+                </tbody>
+            </table>
+
+            <div id="cross-price-elasticity-section" style="display:none;">
+                <h3>Cross-Price Elasticities (with <span id="changed-item-name-elasticity"></span>)</h3>
+                <p><em>How demand for other items changes when the price of <span id="changed-item-name-elasticity-context"></span> changes.</em></p>
+                <table id="elasticity-table" class="elasticity-table">
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Cross-Price Elasticity</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Elasticity data here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <hr style="margin-top: 40px; margin-bottom: 30px;">
+
+        <!-- Elasticity Calculation Section -->
+        <div class="elasticity-section results-section">
+            <h3>Advanced Elasticity Analysis</h3>
+            <div id="elasticity-loading" style="display: none; color: #007bff; font-weight: bold;">Calculating Elasticities...</div>
+
+            <!-- PED Section -->
+            <div class="elasticity-subsection">
+                <h4>Price Elasticity of Demand (PED)</h4>
+                <p>Calculates how the demand for an item changes when its own price changes.</p>
+                <form id="ped-form">
+                    <label for="ped-item-select">Select Item:</label>
+                    <select id="ped-item-select" name="ped_item_id" class="item-select">
+                        {% if menu_items %}
+                            {% for item in menu_items %}
+                                <option value="{{ item.id }}">{{ item.name }}</option>
+                            {% endfor %}
+                        {% endif %}
+                    </select>
+                    <label for="ped-price-changes">Price Change Percentages (comma-separated, e.g., -0.2,-0.1,0.1,0.2):</label>
+                    <input type="text" id="ped-price-changes" name="ped_price_changes" value="-0.2,-0.1,0.1,0.2" class="text-input">
+                    <button type="button" onclick="calculatePED()">Calculate PED</button>
+                </form>
+                <div id="ped-results-container" class="results-display" style="display:none;">
+                    <h5>PED Results for <span id="ped-item-name"></span>:</h5>
+                    <table id="ped-results-table">
+                        <thead>
+                            <tr>
+                                <th>Price Change %</th>
+                                <th>Original Price</th>
+                                <th>New Price</th>
+                                <th>Original Demand</th>
+                                <th>New Demand</th>
+                                <th>PED Value</th>
+                                <th>Interpretation</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- XED Section -->
+            <div class="elasticity-subsection">
+                <h4>Cross-Price Elasticity of Demand (XED)</h4>
+                <p>Calculates how the demand for a 'target item' changes when the price of an 'affecting item' changes.</p>
+                <form id="xed-form">
+                    <label for="xed-target-item-select">Select Target Item:</label>
+                    <select id="xed-target-item-select" name="xed_target_item_id" class="item-select">
+                        {% if menu_items %}
+                            {% for item in menu_items %}
+                                <option value="{{ item.id }}">{{ item.name }}</option>
+                            {% endfor %}
+                        {% endif %}
+                    </select>
+
+                    <label for="xed-affecting-item-select">Select Affecting Item (whose price changes):</label>
+                    <select id="xed-affecting-item-select" name="xed_affecting_item_id" class="item-select">
+                        {% if menu_items %}
+                            {% for item in menu_items %}
+                                <option value="{{ item.id }}">{{ item.name }}</option>
+                            {% endfor %}
+                        {% endif %}
+                    </select>
+
+                    <label for="xed-price-change">Price Change Percentage for Affecting Item (e.g., 0.1 for +10%):</label>
+                    <input type="text" id="xed-price-change" name="xed_price_change" value="0.1" class="text-input">
+                    <button type="button" onclick="calculateXED()">Calculate XED</button>
+                </form>
+                <div id="xed-results-container" class="results-display" style="display:none;">
+                    <h5>XED Results:</h5>
+                    <p>Change in demand for <strong id="xed-target-item-name-display"></strong> when price of <strong id="xed-affecting-item-name-display"></strong> changes.</p>
+                    <div id="xed-result-value"></div>
+                </div>
+            </div>
+        </div> <!-- End Elasticity Section -->
+    </div>
+
+    <footer>
+        <p>&copy; 2024 Plately AI - AI Menu Engineer</p>
+    </footer>
+
+    <script>
+        // Helper function to interpret PED value
+        function getPEDInterpretation(pedValue) {
+            if (pedValue === null || typeof pedValue === 'undefined' || isNaN(pedValue)) return "N/A";
+            if (pedValue === 0) return "Perfectly Inelastic";
+            if (Math.abs(pedValue) < 1) return "Inelastic";
+            if (Math.abs(pedValue) === 1) return "Unit Elastic";
+            if (Math.abs(pedValue) > 1) return "Elastic";
+            if (pedValue === Infinity || pedValue === -Infinity) return "Perfectly Elastic";
+            return "N/A";
+        }
+
+        // Helper function to interpret XED value
+        function getXEDInterpretation(xedValue) {
+            if (xedValue === null || typeof xedValue === 'undefined' || isNaN(xedValue)) return "N/A";
+            if (xedValue > 0) return "Substitutes";
+            if (xedValue < 0) return "Complements";
+            if (xedValue === 0) return "Unrelated";
+            return "N/A";
+        }
+
+
+        async function runSimulation(itemId) {
+            const newPriceInput = document.getElementById(`price-${itemId}`);
+            const newPrice = parseFloat(newPriceInput.value);
+
+            if (isNaN(newPrice) || newPrice < 0) {
+                alert("Please enter a valid, non-negative price.");
+                return;
+            }
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('simulation-results-container').style.display = 'none';
+
+            try {
+                const response = await fetch('/api/v1/simulate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        item_id: itemId,
+                        new_price: newPrice,
+                    }),
+                });
+
+                document.getElementById('loading').style.display = 'none';
+                const results = await response.json();
+
+                if (!response.ok) {
+                    alert(`Error: ${results.error || 'Failed to run simulation'}`);
+                    return;
+                }
+
+                displayResults(results);
+
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+                console.error("Simulation request failed:", error);
+                alert("An error occurred while trying to run the simulation.");
+            }
+        }
+
+        function displayResults(data) {
+            document.getElementById('simulation-results-container').style.display = 'block';
+            document.getElementById('simulation-message').textContent = data.message;
+
+            document.getElementById('baseline-total-revenue').textContent = data.baseline_total_revenue.toFixed(2);
+            document.getElementById('scenario-total-revenue').textContent = data.scenario_total_revenue.toFixed(2);
+
+            const resultsTableBody = document.getElementById('results-table').getElementsByTagName('tbody')[0];
+            resultsTableBody.innerHTML = ''; // Clear previous results
+
+            data.comparison_table.forEach(item => {
+                let row = resultsTableBody.insertRow();
+                row.insertCell().textContent = item.name;
+                row.insertCell().innerHTML = `<span class="currency number">${item.original_price.toFixed(2)}</span>`;
+                row.insertCell().innerHTML = `<span class="currency number">${item.scenario_price.toFixed(2)}</span>`;
+
+                row.insertCell().textContent = item.baseline_demand;
+                row.insertCell().textContent = item.scenario_demand;
+                let demandChange = item.baseline_demand === 0 ? (item.scenario_demand > 0 ? 'New' : 'N/A')
+                                   : ((item.scenario_demand - item.baseline_demand) / item.baseline_demand * 100).toFixed(1) + '%';
+                row.insertCell().textContent = demandChange;
+
+                row.insertCell().innerHTML = `<span class="currency number">${item.baseline_revenue.toFixed(2)}</span>`;
+                row.insertCell().innerHTML = `<span class="currency number">${item.scenario_revenue.toFixed(2)}</span>`;
+                let revenueChange = item.baseline_revenue === 0 ? (item.scenario_revenue > 0 ? 'New' : 'N/A')
+                                   : ((item.scenario_revenue - item.baseline_revenue) / item.baseline_revenue * 100).toFixed(1) + '%';
+                row.insertCell().textContent = revenueChange;
+            });
+
+            // Simplified Cross-price elasticity from general simulation (this part might be redundant if detailed XED below is used)
+            const simpleElasticitySection = document.getElementById('cross-price-elasticity-section');
+            const simpleElasticityTableBody = document.getElementById('elasticity-table').getElementsByTagName('tbody')[0];
+            simpleElasticityTableBody.innerHTML = '';
+
+            const changedItem = data.comparison_table.find(it => it.original_price !== it.scenario_price || (it.original_price === it.scenario_price && it.name.includes(data.changed_item_id)));
+            let changedItemDisplayName = data.changed_item_id;
+            if (changedItem) {
+                 changedItemDisplayName = changedItem.name;
+            }
+
+            if (data.cross_price_elasticities_with_changed_item && Object.keys(data.cross_price_elasticities_with_changed_item).length > 0) {
+                document.getElementById('changed-item-name-elasticity').textContent = changedItemDisplayName;
+                document.getElementById('changed-item-name-elasticity-context').textContent = changedItemDisplayName;
+                for (const [itemName, elasticity] of Object.entries(data.cross_price_elasticities_with_changed_item)) {
+                    let row = simpleElasticityTableBody.insertRow();
+                    row.insertCell().textContent = itemName;
+                    row.insertCell().textContent = typeof elasticity === 'number' ? elasticity.toFixed(3) : elasticity;
+                }
+                simpleElasticitySection.style.display = 'block';
+            } else {
+                simpleElasticitySection.style.display = 'none';
+            }
+        }
+
+        async function calculatePED() {
+            const itemId = document.getElementById('ped-item-select').value;
+            const priceChanges = document.getElementById('ped-price-changes').value;
+            const resultsContainer = document.getElementById('ped-results-container');
+            const resultsTableBody = document.getElementById('ped-results-table').getElementsByTagName('tbody')[0];
+            const pedItemNameSpan = document.getElementById('ped-item-name');
+            const loadingDiv = document.getElementById('elasticity-loading');
+
+            resultsContainer.style.display = 'none';
+            resultsTableBody.innerHTML = '';
+            loadingDiv.style.display = 'block';
+
+            try {
+                const response = await fetch('/api/v1/calculate-elasticities', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({type: 'PED', item_id_vary: itemId, ped_price_changes: priceChanges })
+                });
+                loadingDiv.style.display = 'none';
+                const result = await response.json();
+
+                if (!response.ok || result.error) {
+                    alert(`Error calculating PED: ${result.error || 'Unknown error'}`);
+                    return;
+                }
+
+                pedItemNameSpan.textContent = result.item_name;
+                result.data.forEach(ped_point => {
+                    let row = resultsTableBody.insertRow();
+                    row.insertCell().textContent = (ped_point.percentage_change_price * 100).toFixed(1) + '%';
+                    row.insertCell().innerHTML = `<span class="currency number">${ped_point.original_price.toFixed(2)}</span>`;
+                    row.insertCell().innerHTML = `<span class="currency number">${ped_point.new_price.toFixed(2)}</span>`;
+                    row.insertCell().textContent = ped_point.original_demand;
+                    row.insertCell().textContent = ped_point.new_demand;
+                    row.insertCell().textContent = ped_point.ped_value !== null && !isNaN(ped_point.ped_value) ? ped_point.ped_value.toFixed(3) : "N/A";
+                    row.insertCell().textContent = getPEDInterpretation(ped_point.ped_value);
+                });
+                resultsContainer.style.display = 'block';
+
+            } catch (error) {
+                loadingDiv.style.display = 'none';
+                console.error("PED calculation request failed:", error);
+                alert("An error occurred while calculating PED.");
+            }
+        }
+
+        async function calculateXED() {
+            const targetItemId = document.getElementById('xed-target-item-select').value;
+            const affectingItemId = document.getElementById('xed-affecting-item-select').value;
+            const priceChange = document.getElementById('xed-price-change').value;
+            const resultsContainer = document.getElementById('xed-results-container');
+            const resultValueDiv = document.getElementById('xed-result-value');
+            const targetItemNameSpan = document.getElementById('xed-target-item-name-display');
+            const affectingItemNameSpan = document.getElementById('xed-affecting-item-name-display');
+            const loadingDiv = document.getElementById('elasticity-loading');
+
+            resultsContainer.style.display = 'none';
+            resultValueDiv.innerHTML = '';
+            loadingDiv.style.display = 'block';
+
+            if (targetItemId === affectingItemId) {
+                alert("Target item and Affecting item cannot be the same for XED. Please use PED for own-price elasticity.");
+                loadingDiv.style.display = 'none';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/v1/calculate-elasticities', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        type: 'XED',
+                        target_item_id: targetItemId,
+                        affecting_item_id: affectingItemId,
+                        xed_price_change: priceChange
+                    })
+                });
+                loadingDiv.style.display = 'none';
+                const result = await response.json();
+
+                if (!response.ok || result.error) {
+                    alert(`Error calculating XED: ${result.error || 'Unknown error'}`);
+                    return;
+                }
+
+                const xedData = result.data;
+                targetItemNameSpan.textContent = xedData.target_item_name;
+                affectingItemNameSpan.textContent = xedData.affecting_item_name;
+
+                let content = `<p>Original Price of ${xedData.affecting_item_name}: <span class="currency number">${xedData.p_affecting_base.toFixed(2)}</span></p>`;
+                content += `<p>New Price of ${xedData.affecting_item_name}: <span class="currency number">${xedData.p_affecting_scenario.toFixed(2)}</span> (${(xedData.percentage_change_p_affecting * 100).toFixed(1)}% change)</p>`;
+                content += `<p>Original Demand for ${xedData.target_item_name}: ${xedData.q_target_base}</p>`;
+                content += `<p>New Demand for ${xedData.target_item_name}: ${xedData.q_target_scenario}</p>`;
+                content += `<p><strong>XED Value: ${xedData.xed_value !== null && !isNaN(xedData.xed_value) ? xedData.xed_value.toFixed(3) : "N/A"}</strong></p>`;
+                content += `<p><strong>Interpretation: ${getXEDInterpretation(xedData.xed_value)}</strong></p>`;
+
+                resultValueDiv.innerHTML = content;
+                resultsContainer.style.display = 'block';
+
+            } catch (error) {
+                loadingDiv.style.display = 'none';
+                console.error("XED calculation request failed:", error);
+                alert("An error occurred while calculating XED.");
+            }
+        }
+    </script>
+</body>
+</html>

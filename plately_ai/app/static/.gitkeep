@@ -1,0 +1,2 @@
+# This file ensures the static directory is versioned even if empty.
+# Static files like global CSS or JS would go here.
