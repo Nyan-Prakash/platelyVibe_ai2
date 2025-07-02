@@ -253,7 +253,7 @@
             document.getElementById('simulation-results-container').style.display = 'none';
 
             try {
-                const response = await fetch('/api/v1/simulate', {
+                const response = await fetch('/simulate', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -348,7 +348,7 @@
             loadingDiv.style.display = 'block';
 
             try {
-                const response = await fetch('/api/v1/calculate-elasticities', {
+                const response = await fetch('/calculate-elasticities', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({type: 'PED', item_id_vary: itemId, ped_price_changes: priceChanges })
@@ -402,7 +402,7 @@
             }
 
             try {
-                const response = await fetch('/api/v1/calculate-elasticities', {
+                const response = await fetch('/calculate-elasticities', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
