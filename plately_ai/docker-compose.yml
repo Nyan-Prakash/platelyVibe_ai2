@@ -26,7 +26,7 @@ services:
     # To enable Uvicorn's --reload for development through docker-compose:
     # This overrides the Dockerfile's CMD.
     # Using "python -m uvicorn" to mirror the Dockerfile's CMD structure for consistency.
-    command: python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    command: python run.py
 
     # For secrets like API keys, consider using a .env file (uncomment below):
     # env_file:

@@ -36,8 +36,8 @@ RUN useradd --create-home --home-dir /home/appuser --no-log-init --system --uid 
 
 # Switch to the non-root user
 USER appuser
-WORKDIR /app # Ensure this is the final WORKDIR, where run.py is located
+#WORKDIR /app 
 
 # Command to run the application when the container launches
 # run.py should handle app.run(host='0.0.0.0')
-CMD ["python", "run.py"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "run:app"]

@@ -1,3 +1,5 @@
 Flask>=2.0
 pandas>=1.0 # For data handling, useful with simulation results
 numpy>=1.0 # For numerical operations, if needed by simulation or analysis
+uvicorn[standard]
+gunicorn
